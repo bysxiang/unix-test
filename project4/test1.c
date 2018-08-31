@@ -23,6 +23,10 @@ int main(int argc, char * argv[])
       {
         ptr = "directory";
       }
+      else if (S_ISCHR(buf.st_mode))
+      {
+        ptr = "character special";
+      }
       else if (S_ISBLK(buf.st_mode))
       {
         ptr = "block special";
