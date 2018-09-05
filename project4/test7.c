@@ -69,5 +69,116 @@ static int myftw(char * pathname, Myfunc * func)
 // 我们返回func()的返回值 
 static int dopath(Myfunc * func)
 {
+  struct stat statbuf;
+  struct dirent * dirp;
+  DIR * dp;
+  int ret, n;
+  if (lstat(fullpath, &statbuf) < 0) // stat error
+  {
+    return (func(fullpath, &statbuf, FTW_NS));
+  }
+  if (S_ISDIR(statbuf.st_mode) == 0) // not a directory
+  {
+    return (func(fullpath, $statbuf, FTW_F));
+  }
+  /*
+   * 它是一个目录。第一次对这个目录调用func()，它一次处理每个文件
+   */
+  ret = func(fullpath, &statbuf, FTW_D);
+  if (ret != 0)
+  {
+    return (ret);
+  }
+  n = strlen(fullpath);
+  if (n + NAME_MAX + 2 > pathlen) // 展开路径缓冲区
+  {
+    pathlen *= 2;
+    fullpath = realloc(fullpath, pathlen);
+    if (fullpath == NULL)
+    {
+      err_sys("realloc failed");
+    }
+  }
 
+  fullpath[n++] = '/';
+  fullpath[n] = 0;
+  dp = opendir(fullpath);
+  if (dp == NULL) // 不能读取目录
+  {
+    return (func(fullpath, $statbuf, FTW_DNR));
+  }
+  while ((dirp = readdir(dp)) != NULL)
+  {
+    if (strcmp(dirp->d_name, ".") == 0 || strcmp(dirp->d_name, "..") == 0)
+    {
+      continue; // 忽略.和..
+    }
+    strcpy(&fullpath[n], dirp->d_name); // 追加"/"
+    ret = dopath(func);
+    if (ret != 0) // 
+    {
+      break; // 是时候走了
+    }
+  }
+  fullpath[n - 1] = 0;
+  if (closedir(dp) < 0)
+  {
+    err_ret("can't close directory %s", fullpath);
+  }
+
+  return (ret);
+} // dopath .. end
+
+static int myfunc(const char * pathname, const struct stat * statptr, int type)
+{
+  if (type == FTW_F)
+  {
+    int val = statptr->st_mode & S_IFMT;
+    if (val == S_IFREG)
+    {
+      nreg++;
+    }
+    else if (val == S_IFBLK)
+    {
+      nblk++;
+    }
+    else if (val == S_IFCHR)
+    {
+      nchr++;
+    }
+    else if (val == S_FIFO)
+    {
+      nfifo++;
+    }
+    else if (val == S_IFLNK)
+    {
+      nslink++;
+    }
+    else if (val == S_IFSOCK)
+    {
+      nslink++;
+    }
+    else if (val == S_IFDIR)
+    {
+      err_dump("for S_IFDIR for %s", pathname);
+    }
+  }
+  else if (type == FTW_D)
+  {
+    ndir++;
+  }
+  else if (type == FTW_DNR)
+  {
+    err_ret("cant't read directory %s", pathname);
+  }
+  else if (type == FTW_NS)
+  {
+    err_ret("stat error for %s", pathname);
+  }
+  else
+  {
+    err_dump("unknown type %d for pathname %s", type, pathname);
+  }
+
+  return 0;
 }
