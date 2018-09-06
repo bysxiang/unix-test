@@ -5,7 +5,8 @@
 // 定义了一个函数类型的别名，它接受这些参数，返回int类型结果
 typedef int Myfunc(const char *, const struct stat *, int);
 
-static Myfunc myfunc;
+// 这里实际上是声明了函数原型，它相当于 static int myfunc(const char *, const struct stat *, int);
+static Myfunc myfunc;    
 static int myftw(char *, Myfunc *);
 static int dopath(Myfunc *);
 static long nreg, ndir, nblk, nchr, nfifo, nslink, nsock, ntot;
